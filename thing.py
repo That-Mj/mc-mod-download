@@ -128,7 +128,7 @@ def recurse_dependencies(depends:list, download_list:dict):
         # Get latest version (if any)
         vd = find_latest(d["project_id"])
         if vd is None:
-            if vd is optional: continue
+            if optional: continue
             else: return None # Return "failure" if required dependency is missing
 
         # Skip if mod already in download_list
