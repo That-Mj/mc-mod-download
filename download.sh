@@ -1,12 +1,27 @@
 #!/bin/bash
 
-URLS=""
-DEPENDENCIES=""
-OPTIONAL=""
-DOWNLOAD_LIST=""
+# Note: For increased parity with Windows Batch Scripts, arrays/dicts will not be used
+# Instead, strings of elements separated by semicolons are used for lists, and elements
+# will be prefixed by "KEY:" for dicts. 
 
-# Given a list like `Key:Value;Key:Value;...`, find the value from a key, return 0 if key found, 1 otherwise
-search_list () { # List, Key
+URLS=""          # dict: MOD_ID:DOWNLOAD_URL;...
+DEPENDENCIES=""  # dict: MOD_ID:DEP_ID_1,DEP_ID_2,...;...
+OPTIONAL=""      # dict: MOD_ID:NAME,comments or other info;...
+DOWNLOAD_LIST="" # list: MOD_ID_1;...
+
+# Used wget if curl not found (https://stackoverflow.com/a/677212)
+curl --version >/dev/null 2>&1
+if [[ $? -eq 0 ]] ; then
+    DOWNLOAD_CMD="curl -O"
+else
+    DOWNLOAD_CMD="wget"
+fi
+
+DOWNLOAD_CMD="echo "
+
+
+# Given a dictionary, find the value from a key, return 0 if key found, 1 otherwise
+index_dict () { # Params: Dict, Key
     REMAINING=$1
 
     while [[ -n $REMAINING ]] ; do
@@ -24,7 +39,7 @@ search_list () { # List, Key
     return 1
 }
 
-# Given a list like `Key;Key;...`, return 1 if key exists in list, otherwise 0
+# Given a list, return 1 if key exists in list, otherwise 0
 is_in_list () { # List, Key
     REMAINING=$1
 
@@ -54,6 +69,27 @@ add_download () { # {Mod ID or Slug}
     return 0
 }
 
+add_download_with_deps () { # {Mod ID or Slug}
+    add_download $1
+
+
+    # Get dependencies, continue if none
+    MOD_DEPS="$(index_dict $DEPENDENCIES $1),"
+    if [[ $? -eq 1 ]] ; then
+        return 0
+    fi
+
+    # Add all dependencies
+    while [[ -n $MOD_DEPS ]] ; do
+        NEXT_DEP=${MOD_DEPS%%,*}
+
+        add_download $NEXT_DEP
+
+        MOD_DEPS=${MOD_DEPS#*,}
+
+    done
+}
+
 
 # Adds a mod formatted like `ID,name,comments...`
 handle_opt_mod () {
@@ -69,7 +105,7 @@ handle_opt_mod () {
     [[ $? -eq 1 ]] && return 1 # Skip if already in the download list
 
     # Get user input
-    echo "$MOD_ID $MOD_NAME $MOD_COMMENT"
+    echo "$MOD_NAME [$MOD_ID]: $MOD_COMMENT"
     echo "    https://modrinth.com/mod/$MOD_ID"
 
     IN=""
@@ -78,30 +114,7 @@ handle_opt_mod () {
         [[ $IN == "n" ]] && return 0
     done
 
-    add_download $MOD_ID
-
-
-    # Get dependencies, continue if none
-    MOD_DEPS="$(search_list $DEPENDENCIES $MOD_ID),"
-    if [[ $? -eq 1 ]] ; then
-        return 0
-    fi
-
-    # Add all dependencies
-    while [[ -n $MOD_DEPS ]] ; do
-        NEXT_DEP=${MOD_DEPS%%,*}
-
-        add_download $NEXT_DEP
-
-        # if [[ $? -eq 0 ]] ; then
-        #     echo Added $NEXT_DEP
-        # else
-        #     echo $NEXT_DEP already in downloads
-        # fi
-
-        MOD_DEPS=${MOD_DEPS#*,}
-
-    done
+    add_download_with_deps $MOD_ID
 
     return 0
 }
@@ -136,30 +149,47 @@ while IFS= read -r line; do
     fi
 done < "$0"
 
+# Check for "yall"/"nall" parameters
+if [[ $# -ge 1 ]] ; then
+    # if yall, download all mods from URLs list
+    if [[ $1 == "yall" ]] ; then
+        while [[ -n $URLS ]] ; do
+            NEXT=${URLS%%;*}
+            URLS=${URLS#*;}
 
-while [[ -n $OPTIONAL ]] ; do
-    NEXT_OPT=${OPTIONAL%%;*}
+            $DOWNLOAD_CMD ${NEXT#*:}
+        done
+        exit 0
+    # If nall, only download from required list, which is the current download list so do nothing
+    # If unknown, then specify use
+    elif [[ $1 != "nall" ]] ; then
+        echo "Use: ./scriptname [yall/nall : optional]"
+        echo "     yall: download all optional mods"
+        echo "     nall: skip all optional mods"
+        exit 1
+    fi
+else
+    # Go through all optional mods, adding them to the download list
+    while [[ -n $OPTIONAL ]] ; do
+        NEXT_OPT=${OPTIONAL%%;*}
 
-    handle_opt_mod "$NEXT_OPT"
+        handle_opt_mod "$NEXT_OPT"
 
-    OPTIONAL=${OPTIONAL#*;}
-done
-
-
-echo DOWNLOAD_LIST:
-echo "  $DOWNLOAD_LIST"
-
-exit 0
+        OPTIONAL=${OPTIONAL#*;}
+    done
+fi
 
 
+
+
+# Download all mods
 while [[ -n $DOWNLOAD_LIST ]] ; do
     NEXT=${DOWNLOAD_LIST%%;*}
 
     DOWNLOAD_LIST=${DOWNLOAD_LIST#*;}
-    echo "Downloading $NEXT"
 
-    NEXT_URL=$(search_list $URLS $NEXT)
-    echo "    $NEXT_URL"
+    NEXT_URL=$(index_dict $URLS $NEXT)
+    $DOWNLOAD_CMD $NEXT_URL
 done
 
 exit 0
@@ -209,6 +239,8 @@ qyVF9oeo:Sound Physics Remastered,bullshit
 # DEPENDENCIES
 xT0lnNE9:9s6osm5g,fxxUqruK
 qsSP2ZZ0:9eGKb6K1
+
+ID:URL
 
 
 # URLS

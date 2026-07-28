@@ -7,6 +7,9 @@ import sys
 import stat
 import argparse
 
+### GLOBALLY SET PARAMETERS
+
+# find_latest()
 API_URL="https://api.modrinth.com/v2"
 HEADERS = {
     "User-Agent": "personal_use_mod_manager"
@@ -16,17 +19,55 @@ PARAMS = {
     "game_versions": '["null"]'
 }
 
+# recurse_dependencies
+INC_OPTIONAL = True
+
+# get_all_mod_info
+REQUIRED_OVERRIDE = None
+
+### END GLOBALLY SET PARAMETERS
+
+
+# Sanitize a string to replace ';', which is used as item seperators in lists/dicts in the script's data
+# Note: ':' is also use to separate keys/values in dicts, but should be safe to use regardless
+def sanitize(string:str):
+    # https://www.w3schools.com/tags//ref_urlencode.asp
+    string = string.replace(';', "%3B")
+    # string = string.replace(':', '%3A')
+
+
+# Creates a URL to the main page for the mod
 def make_user_url(mod_id:str):
     return "https://modrinth.com/mod/" + mod_id
 
+
+# Gets the download URL from a version dict/json
+def get_url(version):
+    for f in version["files"]:
+        # Skip non-jar files just in case
+        if f["filename"][-4:] != ".jar": continue
+        return f["url"]
+    return None
+
+
+# Finds the latest version of the mod given the input parameters
 def find_latest(mod:str):
-    r = requests.get(
+    # Get response
+    response = requests.get(
         API_URL + "/project/" + mod + "/version",
         headers=HEADERS,
         params=PARAMS
     )
-    if r.status_code != 200:
+    # Error check, otherwise proceed to grab list of available versions
+    if response.status_code != 200:
         print("ERROR: Invalid status code")
+        return None
+    version_list = response.json()
+
+    # If no versions available, display warning and provide URL to mod page
+    if len(version_list) < 1:
+        print(f"Warning: No versions of {mod} exist for {PARAMS["loaders"]}+{PARAMS["game_versions"]}")
+        print(f"  {make_user_url(mod)}")
         return None
 
     # Sort by version_type first (release->beta->alpha) then by release date
@@ -50,35 +91,37 @@ def find_latest(mod:str):
         else:
             return 0
 
-    vlist = r.json()
-    if len(vlist) < 1:
-        print(f"Warning: No versions of {mod} exist for {PARAMS["loaders"]}+{PARAMS["game_versions"]}")
-        print(f"  {make_user_url(mod)}")
-        return None
+    # Get sorted list
+    version_list = sorted(version_list, key=functools.cmp_to_key(sort_condition))
 
-    vlist = sorted(vlist, key=functools.cmp_to_key(sort_condition))
-
-    return vlist[0]
+    # Return first mod
+    return version_list[0]
 
 
-def get_url(version):
-    for f in version["files"]:
-        # Skip non-jar files just in case
-        if f["filename"][-4:] != ".jar": continue
-        return f["url"]
-    return None
-
-
-
-INC_OPTIONAL = True
+# Recursively finds all dependencies for the given mod `parent`
+    # `history`: Dict: [project_id]: [version dict/json]
+        # Record of all discovered version info. 
+        # Used to avoid additional API calls, e.g. if the mod is a dependency 
+        #  for a previous mod and therefore was already found. 
+    # `found`: Dict: [project_id]: [download URL]
+        # All found dependencies
+    # `missing`: List: [project_id]
+        # Required dependencies for which no valid version exists
+    # return: Dict: [project_id]: [version dict/json], List: [project_id]
+        # 1) Dictionary of all found dependencies
+        # 2) List of all missing dependencies
 def recurse_dependencies(parent, history, found=None, missing=None):
-    if not "dependencies" in parent: return []
-    if found is None: found = {} # ID: URL
+    # If no depencies, return empty list
+    if not "dependencies" in parent: return {}, []
+
+    # If none provided, initialize found and missing lists
+    if found is None: found = { parent["project_id"]: get_url(parent) } # ID: URL
     if missing is None: missing = [] # ID
 
     for c in parent["dependencies"]:
         child_id = c["project_id"]
 
+        # If this mod has already been checked, skip
         if child_id in found or child_id in missing:
             continue
 
@@ -112,24 +155,24 @@ def recurse_dependencies(parent, history, found=None, missing=None):
     return found, missing
 
 
-REQUIRED_OVERRIDE = None
+# Gets all mod info from the requested list
+    # Requested: 
 def get_all_mod_info(requested:list):
     required = [] # List of ids/slugs
     optional = {} # ID: (name, desc)
-    dependencies = {} #ID: [Dep1, Dep2, ...]
+    dependencies = {} # ID: [Dep1, Dep2, ...]
     urls = {} # ID: Url, all mods MUST be in here
 
     history = {} # ID: Version, all mods MUST be in here
 
     for mod_id, mod_req, mod_comm in requested:
+        # Skip or force-include optional mods
         if REQUIRED_OVERRIDE is not None and not mod_req:
             if REQUIRED_OVERRIDE:
                 mod_req = True
             else:
                 continue
-        
         print(f"Finding {mod_id}...")
-
 
         # Get latest version of requested mod (if any)
         if mod_id not in history:
@@ -148,6 +191,29 @@ def get_all_mod_info(requested:list):
         if prid in required:
             print("Requested mod " + mod_id + " already required")
             continue
+        
+        # If mod found in optional:
+        if prid in optional:
+            # If mod should be required
+            if mod_req:
+                # Add dependencies to the required list
+                for dep_id in dependencies[prid]:
+                    if dep_id in required: continue
+                    required.append(dep_id)
+                # Remove from optional and dependencies
+                del optional[prid]
+                del dependencies[prid]
+                # Skip to next mod
+                continue
+            # If mod is supposed to be optional, then skip because it's where it's supposed to be already
+            else:
+                continue
+            
+        # Get URL
+        url = get_url(vers)
+        if url is None:
+            print(f"Failed to get url for {mod_id}")
+            continue
 
         # Get Dependencies
         mod_deps, missing = recurse_dependencies(vers, history)
@@ -156,12 +222,10 @@ def get_all_mod_info(requested:list):
             for m in missing:
                 print(f"   {m} : {make_user_url(m)}")
             continue
-            
-        # Get URL
-        url = get_url(vers)
-        if url is None:
-            print(f"Failed to get url for {mod_id}")
-            continue
+
+        # MOD IS NOW VALID; MOD INFO CAN BE ADDED
+
+        # Add URL (the only non-conditional mod info)
         urls[prid] = url
 
         # If mod is required
@@ -173,10 +237,12 @@ def get_all_mod_info(requested:list):
                 for id,url in mod_deps.items():
                     if id not in urls: urls[id] = url
                     if id not in required: required.append(id)
+        
         # If mod is optional
         else:
             name = None
 
+            # Get the title (or the closest thing available)
             if "title" in vers:
                 name = vers["title"]
             else:
@@ -191,6 +257,10 @@ def get_all_mod_info(requested:list):
                 else:
                     name = mod_id
 
+            # Replace any characters that might mess with
+            name = sanitize(name)
+            mod_comm = sanitize(mod_comm)
+
             optional[prid] = (name, mod_comm)
 
             if len(mod_deps) > 0:
@@ -201,10 +271,13 @@ def get_all_mod_info(requested:list):
                     if id in urls: continue
                     urls[id] = url
     
+    # Just in case, delete any optional mods that are also required
     for r in required:
+        # Delete from optionional
         if r in optional:
             del optional[r]
         
+        # Delete all dependencies
         for id,deps in dependencies.items():
             if r in deps: deps.remove(r)
     
@@ -221,26 +294,28 @@ WINDOWS_START = """WIP
 """
 
 
-def write_required(files:list, required:list):
-    for f in files:
-        f.write("\n\n# REQUIRED\n")
+# Convers the required list to a string
+def get_required_string(required:list):
+    req_str = "\n# REQUIRED\n"
 
     for r in required:
-        for f in files:
-            f.write(r + "\n")
+        req_str += r + "\n"
+    
+    return req_str
 
-def write_optional(files:list, optional:dict):
-    for f in files:
-        f.write("\n\n# OPTIONAL\n")
+# Converts the optional dict to a string
+def get_optional_string(files:list, optional:dict):
+    opt_str = "\n\n# OPTIONAL\n"
 
     for id,info in optional.items():
         line = id + ":" + info[0] + "," + info[1] + "\n"
-        for f in files:
-            f.write(line)
+        opt_str += line
 
-def write_dependencies(files:list, dependencies:dict):
-    for f in files:
-        f.write("\n\n# DEPENDENCIES\n")
+    return opt_str
+
+# Converts the depedencies dict to a string
+def get_dependencies_string(files:list, dependencies:dict):
+    dep_str = "\n# DEPENDENCIES\n"
 
     for id,deps in dependencies.items():
         line = id + ":"
@@ -248,30 +323,65 @@ def write_dependencies(files:list, dependencies:dict):
             line += d + ","
         line = line[:-1] + "\n" # Strip trailing comma and replace with newline
 
-        for f in files:
-            f.write(line)
+        dep_str += line
+    
+    return dep_str
 
-def write_urls(files:list, urls:dict):
-    for f in files:
-        f.write("\n\n# URLS\n")
+# Converts the URLs dict to a string
+def get_urls_string(files:list, urls:dict):
+    urls_str = "\n# URLS\n"
 
     for id,url in urls.items():
         line = id + ":" + url + "\n"
-        for f in files:
-            f.write(line)
+        urls_str += line
+    
+    return urls_str
 
+### SCRIPTS
+
+SCRIPTS = {
+    "platform": {
+        "bash": (
+# FULL
+"""
+
+""",
+# SIMPLIFIED
+"""
+
+"""
+        ),
+#         "windows-batch": (
+# # FULL
+# """
+
+# """,
+# # SIMPLIFIED
+# """
+
+# """
+#         )
+    }
+}
+
+# Convert all lists to strings, write to output files
 def write_all(files, required:list, optional:dict, dependencies:dict, urls:dict):
+    total_str = "\n"
+    
     if len(optional) > 0:
         # Write advanced download script
-        write_required(files, required)
-        write_optional(files, optional)
-        write_dependencies(files, dependencies)
+        total_str = (
+            write_required(required)
+            + write_optional(optional)
+            + write_dependencies(dependencies)
+        )
     else:
         # Write simplified download script
         pass
-    write_urls(files, urls)
 
-    for f in files: f.write("\n")
+    total_str += write_urls(urls)
+
+    for f in files: f.write(total_str)
 
 
 def parse_csv(filepath):
