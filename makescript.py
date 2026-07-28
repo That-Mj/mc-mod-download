@@ -34,6 +34,7 @@ def sanitize(string:str):
     # https://www.w3schools.com/tags//ref_urlencode.asp
     string = string.replace(';', "%3B")
     # string = string.replace(':', '%3A')
+    return string
 
 
 # Creates a URL to the main page for the mod
@@ -287,13 +288,6 @@ def get_all_mod_info(requested:list):
     return required, optional, dependencies, urls
 
 
-BASH_START = """WIP
-"""
-
-WINDOWS_START = """WIP
-"""
-
-
 # Convers the required list to a string
 def get_required_string(required:list):
     req_str = "\n# REQUIRED\n"
@@ -304,17 +298,17 @@ def get_required_string(required:list):
     return req_str
 
 # Converts the optional dict to a string
-def get_optional_string(files:list, optional:dict):
-    opt_str = "\n\n# OPTIONAL\n"
+def get_optional_string(optional:dict):
+    opt_str = "\n# OPTIONAL\n"
 
-    for id,info in optional.items():
+    for id, info in optional.items():
         line = id + ":" + info[0] + "," + info[1] + "\n"
         opt_str += line
 
     return opt_str
 
 # Converts the depedencies dict to a string
-def get_dependencies_string(files:list, dependencies:dict):
+def get_dependencies_string(dependencies:dict):
     dep_str = "\n# DEPENDENCIES\n"
 
     for id,deps in dependencies.items():
@@ -328,7 +322,7 @@ def get_dependencies_string(files:list, dependencies:dict):
     return dep_str
 
 # Converts the URLs dict to a string
-def get_urls_string(files:list, urls:dict):
+def get_urls_string(urls:dict):
     urls_str = "\n# URLS\n"
 
     for id,url in urls.items():
@@ -337,51 +331,31 @@ def get_urls_string(files:list, urls:dict):
     
     return urls_str
 
-### SCRIPTS
-
-SCRIPTS = {
-    "platform": {
-        "bash": (
-# FULL
-"""
-
-""",
-# SIMPLIFIED
-"""
-
-"""
-        ),
-#         "windows-batch": (
-# # FULL
-# """
-
-# """,
-# # SIMPLIFIED
-# """
-
-# """
-#         )
-    }
-}
 
 # Convert all lists to strings, write to output files
-def write_all(files, required:list, optional:dict, dependencies:dict, urls:dict):
+def write_all(output_dir:str, required:list, optional:dict, dependencies:dict, urls:dict):
     total_str = "\n"
+
+    use_simplified = len(optional) <= 0
     
-    if len(optional) > 0:
+    if not use_simplified:
         # Write advanced download script
         total_str = (
-            write_required(required)
-            + write_optional(optional)
-            + write_dependencies(dependencies)
+            get_required_string(required)
+            + get_optional_string(optional)
+            + get_dependencies_string(dependencies)
         )
-    else:
-        # Write simplified download script
-        pass
 
-    total_str += write_urls(urls)
+    total_str += get_urls_string(urls)
 
-    for f in files: f.write(total_str)
+    for filename, scripts in SCRIPTS.items():
+        file = open(output_dir + "/" + filename, "w")
+        script = scripts[1] if use_simplified else scripts[0]
+
+        file.write(script)
+        file.write(total_str)
+
+        file.close()
 
 
 def parse_csv(filepath):
@@ -449,16 +423,262 @@ def main():
     required, optional, dependencies, urls = get_all_mod_info(mod_list)
 
     # Write
-    file = open(args.output + "/test.txt", "w")
-    files = [file]
-
-    write_all(files, required, optional, dependencies, urls)
-
-    file.close()
+    write_all(args.output, required, optional, dependencies, urls)
 
     print("\nScript generation complete")
 
     pass
+
+
+SCRIPTS = {
+    "bash.sh": (
+# FULL
+"""
+#!/bin/bash
+
+# Note: For increased parity with Windows Batch Scripts, arrays/dicts will not be used
+# Instead, strings of elements separated by semicolons are used for lists, and elements
+# will be prefixed by "KEY:" for dicts. 
+
+URLS=""          # dict: MOD_ID:DOWNLOAD_URL;...
+DEPENDENCIES=""  # dict: MOD_ID:DEP_ID_1,DEP_ID_2,...;...
+OPTIONAL=""      # dict: MOD_ID:NAME,comments or other info;...
+DOWNLOAD_LIST="" # list: MOD_ID_1;...
+
+# Used wget if curl not found (https://stackoverflow.com/a/677212)
+curl --version >/dev/null 2>&1
+if [[ $? -eq 0 ]] ; then
+    DOWNLOAD_CMD="curl -O"
+else
+    DOWNLOAD_CMD="wget"
+fi
+
+
+# Given a dictionary, find the value from a key, return 0 if key found, 1 otherwise
+index_dict () { # Params: Dict, Key
+    REMAINING=$1
+
+    while [[ -n $REMAINING ]] ; do
+        KEY=${REMAINING%%:*}
+        
+        if [[ $2 == $KEY ]] ; then
+            VALUE=${REMAINING%%;*}
+            echo ${VALUE#*:}
+            return 0
+        fi
+        
+        REMAINING=${REMAINING#*;}
+    done
+
+    return 1
+}
+
+
+# Given a list, return 1 if key exists in list, otherwise 0
+is_in_list () { # List, Key
+    REMAINING=$1
+
+    while [[ -n $REMAINING ]] ; do
+        NEXT=${REMAINING%%;*}
+        
+        if [[ $2 == $NEXT ]] ; then
+            return 1
+        fi
+
+        REMAINING=${REMAINING#*;}
+    done
+
+    return 0
+}
+
+
+# Add to DOWNLOAD_LIST. Returns 1 if already present in the list, 0 otherwise
+add_download () { # {Mod ID or Slug}
+    VOID=$(is_in_list $DOWNLOAD_LIST $1)
+
+    if [[ $? -eq 1 ]] ; then
+        return 1
+    else
+        DOWNLOAD_LIST="${DOWNLOAD_LIST}${1};"
+    fi
+
+    return 0
+}
+
+
+add_download_with_deps () { # {Mod ID or Slug}
+    add_download $1
+
+
+    # Get dependencies, continue if none
+    MOD_DEPS="$(index_dict $DEPENDENCIES $1),"
+    if [[ $? -eq 1 ]] ; then
+        return 0
+    fi
+
+    # Add all dependencies
+    while [[ -n $MOD_DEPS ]] ; do
+        NEXT_DEP=${MOD_DEPS%%,*}
+
+        add_download $NEXT_DEP
+
+        MOD_DEPS=${MOD_DEPS#*,}
+
+    done
+}
+
+
+# Adds a mod formatted like `ID,name,comments...`
+handle_opt_mod () {
+    REM=$1
+
+    # Handle single line
+    MOD_ID=${REM%%:*}
+    REM=${REM#*:}
+    MOD_NAME=${REM%%,*}
+    MOD_COMMENT=${REM#*,}
+
+    is_in_list $DOWNLOAD_LIST $MOD_ID
+    [[ $? -eq 1 ]] && return 1 # Skip if already in the download list
+
+    # Get user input
+    echo "$MOD_NAME [$MOD_ID]: $MOD_COMMENT"
+    echo "    https://modrinth.com/mod/$MOD_ID"
+
+    IN=""
+    while [[ $IN != "y" ]] ; do
+        read -p "    Use this mod? [y/n]:" IN
+        [[ $IN == "n" ]] && return 0
+    done
+
+    add_download_with_deps $MOD_ID
+
+    return 0
+}
+
+stage=0
+
+# Read mod info from end of file
+while IFS= read -r line; do
+    [[ -z $line ]] && continue
+
+    if [[ "$line" == \\#* ]] ; then
+        if [[ "$line" == "# REQUIRED" ]] ; then
+            stage=1
+        elif [[ "$line" == "# OPTIONAL" ]] ; then
+            stage=2
+        elif [[ "$line" == "# DEPENDENCIES" ]] ; then
+            stage=3
+        elif [[ "$line" == "# URLS" ]] ; then
+            stage=4
+        fi
+        continue
+    fi
+
+    if [[ $stage -eq 1 ]] ; then
+        DOWNLOAD_LIST="${DOWNLOAD_LIST}${line};"
+    elif [[ $stage -eq 2 ]] ; then
+        OPTIONAL="${OPTIONAL}${line};"
+    elif [[ $stage -eq 3 ]] ; then
+        DEPENDENCIES="${DEPENDENCIES}${line};"
+    elif [[ $stage -eq 4 ]] ; then
+        URLS="${URLS}${line};"
+    fi
+done < "$0"
+
+
+# Check for "yall"/"nall" parameters
+if [[ $# -ge 1 ]] ; then
+    # if yall, download all mods from URLs list
+    if [[ $1 == "yall" ]] ; then
+        while [[ -n $URLS ]] ; do
+            NEXT=${URLS%%;*}
+            URLS=${URLS#*;}
+
+            $DOWNLOAD_CMD ${NEXT#*:}
+        done
+        exit 0
+    # If nall, only download from required list, which is the current download list so do nothing
+    # If unknown, then specify use
+    elif [[ $1 != "nall" ]] ; then
+        echo "Use: ./scriptname [yall/nall : optional]"
+        echo "     yall: download all optional mods"
+        echo "     nall: skip all optional mods"
+        exit 1
+    fi
+# Go through all optional mods, adding them to the download list
+else
+    while [[ -n $OPTIONAL ]] ; do
+        NEXT_OPT=${OPTIONAL%%;*}
+
+        handle_opt_mod "$NEXT_OPT"
+
+        OPTIONAL=${OPTIONAL#*;}
+    done
+fi
+
+
+# Download all mods
+while [[ -n $DOWNLOAD_LIST ]] ; do
+    NEXT=${DOWNLOAD_LIST%%;*}
+
+    DOWNLOAD_LIST=${DOWNLOAD_LIST#*;}
+
+    NEXT_URL=$(index_dict $URLS $NEXT)
+    $DOWNLOAD_CMD $NEXT_URL
+done
+
+exit 0
+""",
+
+# SIMPLIFIED
+"""
+#!/bin/bash
+
+# Note: For increased parity with Windows Batch Scripts, arrays/dicts will not be used
+# Instead, strings of elements separated by semicolons are used for lists, and elements
+# will be prefixed by "KEY:" for dicts. 
+
+URLS=""          # dict: MOD_ID:DOWNLOAD_URL;...
+
+# Used wget if curl not found (https://stackoverflow.com/a/677212)
+curl --version >/dev/null 2>&1
+if [[ $? -eq 0 ]] ; then
+    DOWNLOAD_CMD="curl -O"
+else
+    DOWNLOAD_CMD="wget"
+fi
+
+stage=0
+
+# Read mod info from end of file
+while IFS= read -r line; do
+    [[ -z $line ]] && continue
+
+    if [[ "$line" == \\#* ]] ; then
+        if [[ "$line" == "# URLS" ]] ; then
+            stage=1
+        fi
+        continue
+    fi
+
+    if [[ $stage -eq 1 ]] ; then
+        URLS="${URLS}${line};"
+    fi
+done < "$0"
+
+# Download from all URLs
+while [[ -n $URLS ]] ; do
+    NEXT=${URLS%%;*}
+    URLS=${URLS#*;}
+
+    $DOWNLOAD_CMD ${NEXT#*:}
+done
+
+exit 0
+"""
+    ),
+}
 
 if __name__ == "__main__":
     main()
