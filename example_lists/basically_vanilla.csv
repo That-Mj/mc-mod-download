@@ -1,0 +1,50 @@
+# Basics
+fabric-api
+no-chat-reports, n, Helps prevent chat reporting and whatnot
+
+# Optimization
+sodium
+lithium
+ferrite-core
+better-block-entities
+entityculling
+immediatelyfast, n, Optimizes Minecraft's immediate-mode rendering
+distanthorizons, n, Uses LODs to massively increase render distance with little FPS loss: Voxy is a better and more modern alternative
+voxy, n, Uses LODs to massively increase render distance with little FPS loss
+voxy-worldgen, n, Automatic LOD generation for Voxy
+
+# UI + QOL
+modmenu
+borderless-fullscreen
+delete-worlds-to-trash
+controlling
+just-zoom, n, Adds zooming
+female-gender, n, Greatly improves mental health
+mouse-tweaks, n, Allows shift-drag-clicking to move items, and other minor inventory changes
+scribble, n, Color, formatting, and page management when writing books
+shulkerboxtooltip, n, Shows what a shulker box contains in your inventory
+appleskin, n, Visualize how much hunger/health food will replenish
+chat-heads, n, Show player heads in chat messages
+locator-heads, n, Show player heads on locator bar
+locator_lodestones, n, Adds lodestone waypoints to locator bar
+xaeros-minimap, n, Adds a neat little minimap
+xaeros-world-map, n, Expands Xaero's Minimap to have a full world map you can view
+
+# Tools
+carpet, n, Techinical tools and whatnot
+carpet-tis-addition, Expands on carpet, adds things like damage logging
+chunk-debug, n, Lets you see what chunks are loaded and how they are loaded and whatnot
+replaymod, n, Allows recording of gameplay as a record of events, rather than as video
+
+# Visuals
+continuity
+iris
+lambdynamiclights
+entitytexturefeatures, n, Adds support for a bunch of entity texture features, required by many resourcepacks
+entity-model-features, n, Adds support for a bunch of model texture features, required by many resourcepacks
+esf, n, Adds support for a bunch of entity sound features, required by many resourcepacks
+
+# Sound
+sound-physics-remastered, n, Adds realistic sound physics
+simple-voice-chat, n, Adds proximity voice chat
+voice-chat-interaction, n, Adds interaction between sculk sensors/shreikers and voice chat

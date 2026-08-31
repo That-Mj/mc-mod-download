@@ -369,6 +369,10 @@ def parse_csv(filepath):
         # Ignore comments
         if line[0] == '#': continue
 
+        line = line.strip()
+
+        if len(line) < 1: continue
+
         # Split on commas
         items = line.split(sep=",", maxsplit=2)
         if len(items) < 1:

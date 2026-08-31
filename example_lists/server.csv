@@ -1,0 +1,16 @@
+# Basics
+fabric-api
+no-chat-reports, n, Helps prevent chat reporting and whatnot
+
+# Optimization
+lithium
+ferrite-core
+voxy-worldgen, n, Automatic LOD generation for Voxy
+
+# Worldgen
+streams-reflowing, n, Adds realistic water to world generation, also has non-vanilla features like rivers with flow-direction
+
+# Sound
+sound-physics-remastered, n, Adds realistic sound physics
+simple-voice-chat, n, Adds proximity voice chat
+voice-chat-interaction, n, Adds interaction between sculk sensors/shreikers and voice chat
