@@ -2,15 +2,39 @@
 fabric-api
 no-chat-reports, n, Helps prevent chat reporting and whatnot
 
+# UI Stuff
+appleskin, n, Adds various food-related HUD improvements
+
 # Optimization
 lithium
 ferrite-core
+
+# LODs
+distanthorizons, n, LOD generation for clients with distant horizons
 voxy-worldgen, n, Automatic LOD generation for Voxy
+voxy-seedgen, n, Allows for very fast and distant LOD generation with Voxy
 
 # Worldgen
 streams-reflowing, n, Adds realistic water to world generation, also has non-vanilla features like rivers with flow-direction
+terralith, n, Major changes to worldgen without adding any new blocks or items
+tectonic, n, More sublte changes to worldgen without adding any new blocks or items
+
+# Backup
+fastback, n, Git-based world backups (personally not a fan of how it makes everything its own branch, makes it obnoxious to manage manually)
+death-backup, n, Backs up inventories before any deaths, allowing for recovery of important items if needed
+
+# Tools
+carpet, n, Techinical tools and whatnot
+carpet-tis-addition, n, Expands on carpet, adds things like damage logging
+spark, n, Used for diagnosing server performance issues and whatnot
 
 # Sound
 sound-physics-remastered, n, Adds realistic sound physics
 simple-voice-chat, n, Adds proximity voice chat
 voice-chat-interaction, n, Adds interaction between sculk sensors/shreikers and voice chat
+
+# Platforms
+geyser, n, Mod for Bedrock compatibility. Should work with a modded java server as long as all mods are vanilla-compatible. 
+visor, n, Modern mod allowing for VR
+visoressentials, n, Addon for the aforementioned mod, adding more immersive UI
+vivecraft, n, Ol' reliable VR mod

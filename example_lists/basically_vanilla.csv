@@ -9,17 +9,19 @@ ferrite-core
 better-block-entities
 entityculling
 immediatelyfast, n, Optimizes Minecraft's immediate-mode rendering
-distanthorizons, n, Uses LODs to massively increase render distance with little FPS loss: Voxy is a better and more modern alternative
+distanthorizons, n, Uses LODs to massively increase render distance with little FPS loss (I personally prefer Voxy, but you do you)
 voxy, n, Uses LODs to massively increase render distance with little FPS loss
 voxy-worldgen, n, Automatic LOD generation for Voxy
+voxy-seam-fix, n, Fixes the "seam" visual bug with Voxy
+voxy-seedgen, n, Allows for very fast and distant LOD generation with Voxy
 
 # UI + QOL
 modmenu
 borderless-fullscreen
-delete-worlds-to-trash
-controlling
+delete-worlds-to-trash, n, Delete worlds to the trash / recycle bin instead of them being gone for good
+controlling, y, Adds search bar for keybinds, useful for large modpacks
 just-zoom, n, Adds zooming
-female-gender, n, Greatly improves mental health
+female-gender, n, Greatly improves mental health for some
 mouse-tweaks, n, Allows shift-drag-clicking to move items, and other minor inventory changes
 scribble, n, Color, formatting, and page management when writing books
 shulkerboxtooltip, n, Shows what a shulker box contains in your inventory
@@ -32,14 +34,15 @@ xaeros-world-map, n, Expands Xaero's Minimap to have a full world map you can vi
 
 # Tools
 carpet, n, Techinical tools and whatnot
-carpet-tis-addition, Expands on carpet, adds things like damage logging
+carpet-tis-addition, n, Expands on carpet, adds things like damage logging
 chunk-debug, n, Lets you see what chunks are loaded and how they are loaded and whatnot
 replaymod, n, Allows recording of gameplay as a record of events, rather than as video
+replay-voice-chat, n, Adds voice chat support to ReplayMod
 
 # Visuals
 continuity
-iris
 lambdynamiclights
+iris, n, Adds shader support
 entitytexturefeatures, n, Adds support for a bunch of entity texture features, required by many resourcepacks
 entity-model-features, n, Adds support for a bunch of model texture features, required by many resourcepacks
 esf, n, Adds support for a bunch of entity sound features, required by many resourcepacks
@@ -48,3 +51,8 @@ esf, n, Adds support for a bunch of entity sound features, required by many reso
 sound-physics-remastered, n, Adds realistic sound physics
 simple-voice-chat, n, Adds proximity voice chat
 voice-chat-interaction, n, Adds interaction between sculk sensors/shreikers and voice chat
+
+# VR
+visor, n, Modern mod allowing for VR
+visoressentials, n, Addon for the aforementioned mod, adding more immersive UI
+vivecraft, n, Ol' reliable VR mod

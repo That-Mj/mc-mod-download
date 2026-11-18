@@ -9,12 +9,15 @@ DEPENDENCIES=""  # dict: MOD_ID:DEP_ID_1,DEP_ID_2,...;...
 OPTIONAL=""      # dict: MOD_ID:NAME,comments or other info;...
 DOWNLOAD_LIST="" # list: MOD_ID_1;...
 
-# Used wget if curl not found (https://stackoverflow.com/a/677212)
-curl --version >/dev/null 2>&1
-if [[ $? -eq 0 ]] ; then
-    DOWNLOAD_CMD="curl -O"
-else
-    DOWNLOAD_CMD="wget"
+# If no download command provided, select either curl or wget
+if [[ -z ${DOWNLOAD_CMD+x} ]] ; then
+    # Used wget if curl not found (https://stackoverflow.com/a/677212)
+    curl --version >/dev/null 2>&1
+    if [[ $? -eq 0 ]] ; then
+        DOWNLOAD_CMD="curl -O"
+    else
+        DOWNLOAD_CMD="wget"
+    fi
 fi
 
 
@@ -236,7 +239,6 @@ qyVF9oeo:Sound Physics Remastered,bullshit
 # DEPENDENCIES
 xT0lnNE9:9s6osm5g,fxxUqruK
 qsSP2ZZ0:9eGKb6K1
-
 ID:URL
 
 
@@ -276,4 +278,3 @@ yBW8D80W:https://cdn.modrinth.com/data/yBW8D80W/versions/jBLH7Qy8/lambdynamiclig
 9eGKb6K1:https://cdn.modrinth.com/data/9eGKb6K1/versions/3SOh5iiX/voicechat-fabric-2.6.21%2B26.2.jar
 qsSP2ZZ0:https://cdn.modrinth.com/data/qsSP2ZZ0/versions/luUS5Hod/vcinteraction-fabric-1.0.8%2B26.2.jar
 qyVF9oeo:https://cdn.modrinth.com/data/qyVF9oeo/versions/d8iioMMp/sound-physics-remastered-fabric-1.5.1%2B26.2.jar
-
